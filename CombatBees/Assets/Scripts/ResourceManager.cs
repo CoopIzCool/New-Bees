@@ -1,6 +1,9 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Collections;
+using Unity.Jobs;
+using Unity.Mathematics;
 
 public class ResourceManager : MonoBehaviour {
 	public Mesh resourceMesh;
@@ -25,11 +28,21 @@ public class ResourceManager : MonoBehaviour {
 
 	public static ResourceManager instance;
 
+	#region ECS Fields
+	public NativeArray<float3> resourcePosition;
+	public NativeArray<bool> resourceStacked;
+	public NativeArray<int> gridX;
+	public NativeArray<int> gridY;
+	public NativeArray<int> holderIndex;
+	public NativeArray<bool> resourceVelocity;
+	public NativeArray<bool> dead;
+	#endregion
+
 	public static Resource TryGetRandomResource() {
 		if (instance.resources.Count==0) {
 			return null;
 		} else {
-			Resource resource = instance.resources[Random.Range(0,instance.resources.Count)];
+			Resource resource = instance.resources[UnityEngine.Random.Range(0,instance.resources.Count)];
 			int stackHeight = instance.stackHeights[resource.gridX,resource.gridY];
 			if (resource.holder == null || resource.stackIndex==stackHeight-1) {
 				return resource;
@@ -62,7 +75,7 @@ public class ResourceManager : MonoBehaviour {
 	}
 
 	void SpawnResource() {
-		Vector3 pos = new Vector3(minGridPos.x * .25f + Random.value * Field.size.x * .25f,Random.value * 10f,minGridPos.y + Random.value * Field.size.z);
+		Vector3 pos = new Vector3(minGridPos.x * .25f + UnityEngine.Random.value * Field.size.x * .25f, UnityEngine.Random.value * 10f,minGridPos.y + UnityEngine.Random.value * Field.size.z);
 		SpawnResource(pos);
 	}
 	void SpawnResource(Vector3 pos) {
