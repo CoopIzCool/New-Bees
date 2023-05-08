@@ -68,6 +68,12 @@
     <Compile Include="Assets\Scripts\Data Types\Bee.cs" />
     <Compile Include="Assets\Scripts\Data Types\BeeParticle.cs" />
     <Compile Include="Assets\Scripts\BeeMovementJob.cs" />
+    <Compile Include="Assets\Scripts\InitJob.cs" />
+    <Compile Include="Assets\Scripts\DeathJob.cs" />
+    <Compile Include="Assets\Scripts\HungerJob.cs" />
+    <Compile Include="Assets\Scripts\AngerJob.cs" />
+    <Compile Include="Assets\Scripts\VelocityJob.cs" />
+    <Compile Include="Assets\Scripts\DecisionJob.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Shaders\FieldContainer.shader" />

@@ -28,6 +28,8 @@ public class ResourceManager : MonoBehaviour {
 
 	public static ResourceManager instance;
 
+	public int indexCount = 0;
+
 	#region ECS Fields
 	public NativeArray<float3> resourcePosition;
 	public NativeArray<bool> resourceStacked;
@@ -44,10 +46,32 @@ public class ResourceManager : MonoBehaviour {
 		} else {
 			Resource resource = instance.resources[UnityEngine.Random.Range(0,instance.resources.Count)];
 			int stackHeight = instance.stackHeights[resource.gridX,resource.gridY];
-			if (resource.holder == null || resource.stackIndex==stackHeight-1) {
+			if (resource.holderIndex == -1 || resource.stackIndex==stackHeight-1) {
 				return resource;
 			} else {
 				return null;
+			}
+		}
+	}
+
+
+	public static int TryGetRandomResourceIndex()
+	{
+		if (instance.resources.Count == 0)
+		{
+			return -1;
+		}
+		else
+		{
+			Resource resource = instance.resources[UnityEngine.Random.Range(0, instance.resources.Count)];
+			int stackHeight = instance.stackHeights[resource.gridX, resource.gridY];
+			if (resource.holderIndex == -1 || resource.stackIndex == stackHeight - 1)
+			{
+				return resource.resourceIndex;
+			}
+			else
+			{
+				return -1;
 			}
 		}
 	}
@@ -79,8 +103,8 @@ public class ResourceManager : MonoBehaviour {
 		SpawnResource(pos);
 	}
 	void SpawnResource(Vector3 pos) {
-		Resource resource = new Resource(pos);
-
+		Resource resource = new Resource(pos,indexCount);
+		indexCount++;
 		resources.Add(resource);
 		matrices.Add(Matrix4x4.identity);
 	}
@@ -90,8 +114,8 @@ public class ResourceManager : MonoBehaviour {
 		matrices.RemoveAt(matrices.Count - 1);
 	}
 
-	public static void GrabResource(Bee bee, Resource resource) {
-		resource.holder = bee;
+	public static void GrabResource(int beeIndex, Resource resource) {
+		resource.holderIndex = beeIndex;
 		resource.stacked = false;
 		instance.stackHeights[resource.gridX,resource.gridY]--;
 	}
@@ -126,13 +150,13 @@ public class ResourceManager : MonoBehaviour {
 
 		for (int i=0;i<resources.Count;i++) {
 			Resource resource = resources[i];
-			if (resource.holder != null) {
-				if (resource.holder.dead) {
-					resource.holder = null;
+			if (resource.holderIndex != -1) {
+				if (BeeManager.dead[resource.holderIndex]) {
+					resource.holderIndex = -1;
 				} else {
-					Vector3 targetPos = resource.holder.position - Vector3.up * (resourceSize + resource.holder.size)*.5f;
+					Vector3 targetPos = ((Vector3)BeeManager.beePositions[resource.holderIndex]) - Vector3.up * (resourceSize + BeeManager.sizes[resource.holderIndex])*.5f;
 					resource.position = Vector3.Lerp(resource.position,targetPos,carryStiffness * Time.deltaTime);
-					resource.velocity = resource.holder.velocity;
+					resource.velocity = BeeManager.beeVelocities[resource.holderIndex];
 				}
 			} else if (resource.stacked == false) {
 				resource.position = Vector3.Lerp(resource.position,NearestSnappedPos(resource.position),snapStiffness * Time.deltaTime);

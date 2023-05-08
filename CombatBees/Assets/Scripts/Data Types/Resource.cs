@@ -8,11 +8,14 @@ public class Resource {
 	public int stackIndex;
 	public int gridX;
 	public int gridY;
-	public Bee holder;
+	public int holderIndex;
 	public Vector3 velocity;
 	public bool dead;
+	public int resourceIndex;
 
-	public Resource(Vector3 myPosition) {
+	public Resource(Vector3 myPosition, int index) {
 		position = myPosition;
+		resourceIndex = index;
+		holderIndex = -1;
 	}
 }

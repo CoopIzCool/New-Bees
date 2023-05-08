@@ -47,24 +47,33 @@ public class BeeManager : MonoBehaviour
 	MaterialPropertyBlock matProps;
 
 	#region ECS Fields
-	public NativeArray<float3> beePositions;
-	public NativeArray<float3> beeVelocities;
+	public static NativeArray<float3> beePositions;
+	public static NativeArray<float3> beeVelocities;
 	public NativeArray<float3> beeSmoothPositions;
 	public NativeArray<float3> beeSmoothDirections;
-	public NativeArray<int> teams;
-	public NativeArray<float> sizes;
+	public NativeArray<bool> teams;
+	public static NativeArray<float> sizes;
 	public NativeArray<int> targetIndex;
 	//To do once resources are refactored
 	public NativeArray<int> resourceTargetIndex;
 
 	//Equal to False at start
-	public NativeArray<bool> dead;
+	public static NativeArray<bool> dead;
 	//Equal to 1f at start
-	[ReadOnly] public NativeArray<float> deathTimer;
+    public NativeArray<float> deathTimer;
 	public NativeArray<bool> isAttacking;
 	public NativeArray<bool> isHoldingResource;
+	public NativeArray<bool> isActive;
+
+	public NativeArray<int> trueTeamIndex;
+	public NativeArray<int> falseTeamIndex;
 	//Probably not needed
 	//public int index;
+
+	int highestIndex = 0;
+	int trueIndex = 0;
+	int falseIndex = 0;
+	List<int> pooledIndex = new List<int>();
 	#endregion
 
 	public void OnDestroy()
@@ -81,21 +90,28 @@ public class BeeManager : MonoBehaviour
 		deathTimer.Dispose();
 		isAttacking.Dispose();
 		isHoldingResource.Dispose();
+		isActive.Dispose();
+		trueTeamIndex.Dispose();
+		falseTeamIndex.Dispose();
 	}
 
 	public static void SpawnBee(int team)
 	{
-		float3 pos2 = new float3(1.0f, 0, 0) * (-Field.size.x * .4f + Field.size.x * .8f * team);
-		Vector3 pos = Vector3.right * (-Field.size.x * .4f + Field.size.x * .8f * team);
-		instance._SpawnBee(pos, team);
+		float3 pos = new float3(1.0f, 0, 0) * (-Field.size.x * .4f + Field.size.x * .8f * team);
+		bool teamBool = (team % 2 == 0) ? true : false;
+		//Vector3 pos = Vector3.right * (-Field.size.x * .4f + Field.size.x * .8f * team);
+		instance._SpawnBee(pos, teamBool);
 	}
 
 	public static void SpawnBee(Vector3 pos, int team)
 	{
-		instance._SpawnBee(pos, team);
+		bool teamBool = (team % 2 == 0) ? true : false;
+		instance._SpawnBee((float3)pos, teamBool);
 	}
 
-	void _SpawnBee(Vector3 pos, int team)
+	#region Defunct Code
+	/*
+    void _SpawnBee(Vector3 pos, int team)
 	{
 		Bee bee;
 		if (pooledBees.Count == 0)
@@ -123,6 +139,67 @@ public class BeeManager : MonoBehaviour
 		beeMatrices[activeBatch].Add(Matrix4x4.identity);
 		beeColors[activeBatch].Add(teamColors[team]);
 	}
+
+
+	void DeleteBee(int selectedIndex)
+	{
+		pooledIndex.Add(selectedIndex);
+		isActive[selectedIndex] = false;
+		if (beeMatrices[activeBatch].Count == 0 && activeBatch > 0)
+		{
+			activeBatch--;
+		}
+		beeMatrices[activeBatch].RemoveAt(beeMatrices[activeBatch].Count - 1);
+		beeColors[activeBatch].RemoveAt(beeColors[activeBatch].Count - 1);
+	}
+	*/
+	#endregion
+	void _SpawnBee(float3 pos, bool team)
+	{
+		int selectedIndex;
+		if(pooledIndex.Count == 0)
+		{
+			selectedIndex = highestIndex;
+			highestIndex++;
+		}
+		else
+		{
+			selectedIndex = pooledIndex[pooledIndex.Count - 1];
+			pooledIndex.RemoveAt(pooledIndex.Count - 1);
+		}
+
+		beePositions[selectedIndex] = pos;
+		teams[selectedIndex] = team;
+		sizes[selectedIndex] = UnityEngine.Random.Range(minBeeSize, maxBeeSize);
+		Vector3 initVelocity = UnityEngine.Random.insideUnitSphere * maxSpawnSpeed;
+		beeVelocities[selectedIndex] = (float3)initVelocity;
+		dead[selectedIndex] = false;
+		isActive[selectedIndex] = true; 
+		int teamIndex = (team) ? 0 : 1;
+
+		if(team)
+		{
+			trueTeamIndex[trueIndex] = selectedIndex;
+			trueIndex++;
+		}
+		else
+		{
+			falseTeamIndex[falseIndex] = selectedIndex;
+			falseIndex++;
+		}
+		if (beeMatrices[activeBatch].Count == beesPerBatch)
+		{
+			activeBatch++;
+			if (beeMatrices.Count == activeBatch)
+			{
+				beeMatrices.Add(new List<Matrix4x4>());
+				beeColors.Add(new List<Vector4>());
+			}
+		}
+		beeMatrices[activeBatch].Add(Matrix4x4.identity);
+		
+		beeColors[activeBatch].Add(teamColors[teamIndex]);
+	}
 	void DeleteBee(Bee bee)
 	{
 		pooledBees.Add(bee);
@@ -135,6 +212,19 @@ public class BeeManager : MonoBehaviour
 		beeMatrices[activeBatch].RemoveAt(beeMatrices[activeBatch].Count - 1);
 		beeColors[activeBatch].RemoveAt(beeColors[activeBatch].Count - 1);
 	}
+
+	void DeleteBee(int selectedIndex)
+	{
+		pooledIndex.Add(selectedIndex);
+		isActive[selectedIndex] = false;
+		if (beeMatrices[activeBatch].Count == 0 && activeBatch > 0)
+		{
+			activeBatch--;
+		}
+		beeMatrices[activeBatch].RemoveAt(beeMatrices[activeBatch].Count - 1);
+		beeColors[activeBatch].RemoveAt(beeColors[activeBatch].Count - 1);
+	}
+
 
 	void Awake()
 	{
@@ -151,10 +241,43 @@ public class BeeManager : MonoBehaviour
 		beeColors = new List<List<Vector4>>();
 		beeColors.Add(new List<Vector4>());
 
-		#region ECS declerations
+		//dont know if this is needed but check regardless
+		//matProps = new MaterialPropertyBlock();
 
+		#region ECS declerations
+		beePositions = new NativeArray<float3>(50000, Allocator.Persistent);
+		beeVelocities = new NativeArray<float3>(50000, Allocator.Persistent);
+		beeSmoothPositions = new NativeArray<float3>(50000, Allocator.Persistent);
+		beeSmoothDirections = new NativeArray<float3>(50000, Allocator.Persistent);
+		teams = new NativeArray<bool>(50000, Allocator.Persistent);
+		sizes = new NativeArray<float>(50000, Allocator.Persistent);
+		targetIndex = new NativeArray<int>(50000, Allocator.Persistent);
+		resourceTargetIndex = new NativeArray<int>(50000, Allocator.Persistent);
+		dead = new NativeArray<bool>(50000, Allocator.Persistent);
+		deathTimer = new NativeArray<float>(50000, Allocator.Persistent);
+		isAttacking = new NativeArray<bool>(50000, Allocator.Persistent);
+		isHoldingResource = new NativeArray<bool>(50000, Allocator.Persistent);
+		isActive = new NativeArray<bool>(50000, Allocator.Persistent);
+		trueTeamIndex = new NativeArray<int>(25000, Allocator.Persistent);
+		falseTeamIndex = new NativeArray<int>(25000, Allocator.Persistent);
+		InitJob initJob = new InitJob
+		{
+			beeVelocities = beeVelocities,
+			beeSmoothDirections = beeSmoothDirections,
+			dead = dead,
+			deathTimer = deathTimer,
+			targetIndex = targetIndex,
+			resourceTargetIndex = resourceTargetIndex,
+			isAttacking = isAttacking,
+			isHoldingResource = isHoldingResource,
+			isActive = isActive
+		};
+
+		JobHandle initHandle = initJob.Schedule(50000, 64);
+		initHandle.Complete();
 		#endregion
-		matProps = new MaterialPropertyBlock();
+
+		
 
 		for (int i = 0; i < 2; i++)
 		{
@@ -219,87 +342,9 @@ public class BeeManager : MonoBehaviour
 					}
 				}
 
-				else if (bee.enemyTarget != null)
-				{
-					if (bee.enemyTarget.dead)
-					{
-						bee.enemyTarget = null;
-					}
-					else
-					{
-						delta = bee.enemyTarget.position - bee.position;
-						float sqrDist = delta.x * delta.x + delta.y * delta.y + delta.z * delta.z;
-						if (sqrDist > attackDistance * attackDistance)
-						{
-							bee.velocity += delta * (chaseForce * deltaTime / Mathf.Sqrt(sqrDist));
-						}
-						else
-						{
-							bee.isAttacking = true;
-							bee.velocity += delta * (attackForce * deltaTime / Mathf.Sqrt(sqrDist));
-							if (sqrDist < hitDistance * hitDistance)
-							{
-								ParticleManager.SpawnParticle(bee.enemyTarget.position, ParticleType.Blood, bee.velocity * .35f, 2f, 6);
-								bee.enemyTarget.dead = true;
-								bee.enemyTarget.velocity *= .5f;
-								bee.enemyTarget = null;
-							}
-						}
-					}
-				}
+				
 
-				else if (bee.resourceTarget != null)
-				{
-					Resource resource = bee.resourceTarget;
-					if (resource.holder == null)
-					{
-						if (resource.dead)
-						{
-							bee.resourceTarget = null;
-						}
-						else if (resource.stacked && ResourceManager.IsTopOfStack(resource) == false)
-						{
-							bee.resourceTarget = null;
-						}
-						else
-						{
-							delta = resource.position - bee.position;
-							float sqrDist = delta.x * delta.x + delta.y * delta.y + delta.z * delta.z;
-							if (sqrDist > grabDistance * grabDistance)
-							{
-								bee.velocity += delta * (chaseForce * deltaTime / Mathf.Sqrt(sqrDist));
-							}
-							else if (resource.stacked)
-							{
-								ResourceManager.GrabResource(bee, resource);
-							}
-						}
-					}
-					else if (resource.holder == bee)
-					{
-						Vector3 targetPos = new Vector3(-Field.size.x * .45f + Field.size.x * .9f * bee.team, 0f, bee.position.z);
-						delta = targetPos - bee.position;
-						dist = Mathf.Sqrt(delta.x * delta.x + delta.y * delta.y + delta.z * delta.z);
-						bee.velocity += (targetPos - bee.position) * (carryForce * deltaTime / dist);
-						if (dist < 1f)
-						{
-							resource.holder = null;
-							bee.resourceTarget = null;
-						}
-						else
-						{
-							bee.isHoldingResource = true;
-						}
-					}
-					else if (resource.holder.team != bee.team)
-					{
-						bee.enemyTarget = resource.holder;
-					}
-					else if (resource.holder.team == bee.team)
-					{
-						bee.resourceTarget = null;
-					}
-				}
+				
                 #endregion
             }
             else
@@ -361,21 +406,88 @@ public class BeeManager : MonoBehaviour
 			bee.smoothDirection = bee.smoothPosition - oldSmoothPos;
 		}
 
-		
+		#region Jobs Update
+		VelocityJob velocityJob = new VelocityJob
+		{
+			isAttacking = isAttacking,
+			isHoldingResource = isHoldingResource,
+			dead = dead,
+			beeVelocities = beeVelocities,
+			team = teams,
+			teamTrue = trueTeamIndex,
+			teamTrueMax = trueIndex,
+			teamFalse = falseTeamIndex,
+			teamFalseMax = falseIndex,
+			beePositions = beePositions,
+			isActive = isActive,
+			flightJitter = flightJitter,
+			damping = damping,
+			teamAttraction = teamAttraction,
+			teamRepulsion = teamRepulsion,
+			deltaTime = Time.deltaTime
+			
+		};
+
+		AngerJob angerJob = new AngerJob
+		{
+			targetIndex = targetIndex,
+			dead = dead,
+			beePosition = beePositions,
+			beeVelocities = beeVelocities,
+			isAttacking = isAttacking,
+			isActive = isActive,
+			attackDistance = attackDistance,
+			chaseForce = chaseForce,
+			attackForce = attackForce,
+			hitDistance = hitDistance,
+			deltaTime = Time.deltaTime
+		};
+
 		BeeMovementJob beeMovementJob = new BeeMovementJob
 		{
 			beePositions = beePositions,
 			beeVelocities = beeVelocities,
 			isHoldingResource = isHoldingResource,
+			isActive = isActive,
 			fieldSize = Field.burstSize,
-			resourceSize = ResourceManager.instance.resourceSize
+			resourceSize = ResourceManager.instance.resourceSize,
+			deltaTime = Time.deltaTime
 		};
 
+		JobHandle velocityHandle = velocityJob.Schedule(beePositions.Length, 64);
+		velocityHandle.Complete();
+
+		//Ugh loops
+		for(int i = 0; i < beePositions.Length; i++)
+		{
+			if (targetIndex[i] == -1 && resourceTargetIndex[i] == -1)
+			{
+				if (UnityEngine.Random.value < aggression)
+				{
+					int enemyIndex = 0;
+					//Find a way to make sure only a real index gets called.
+					if(teams[i])
+					{
+						enemyIndex = falseTeamIndex[UnityEngine.Random.Range(0,falseIndex)];
+					}
+					else
+					{
+						enemyIndex = trueTeamIndex[UnityEngine.Random.Range(0, trueIndex)];
+					}
+				}
+				else
+				{
+					resourceTargetIndex[i] = ResourceManager.TryGetRandomResourceIndex();
+				}
+			}
+		}
+		//Maybe figure out a way to implement particles on death if I want a medal or something
+		JobHandle angerHandle = angerJob.Schedule(beePositions.Length, 64);
 		JobHandle movementHandle = beeMovementJob.Schedule(beePositions.Length, 64);
 		movementHandle.Complete();
-		
-	}
-	private void Update()
+        #endregion
+    }
+    private void Update()
 	{
 		for (int i = 0; i < bees.Count; i++)
 		{
@@ -399,7 +511,7 @@ public class BeeManager : MonoBehaviour
 				color *= .75f;
 				scale *= Mathf.Sqrt(bees[i].deathTimer);
 			}
-			beeMatrices[i / beesPerBatch][i % beesPerBatch] = Matrix4x4.TRS(bees[i].position, rotation, scale);
+			beeMatrices[i / beesPerBatch][i % beesPerBatch] = Matrix4x4.TRS(beePositions[i], rotation, scale);
 			beeColors[i / beesPerBatch][i % beesPerBatch] = color;
 		}
 		for (int i = 0; i <= activeBatch; i++)
