@@ -8,7 +8,7 @@ using UnityEngine;
 public struct AngerJob : IJobParallelFor
 {
     public NativeArray<int> targetIndex;
-    public NativeArray<bool> dead;
+    [NativeDisableParallelForRestriction] public NativeArray<bool> dead;
     [ReadOnly] public NativeArray<float3> beePosition;
     public NativeArray<float3> beeVelocities;
     public NativeArray<bool> isAttacking;

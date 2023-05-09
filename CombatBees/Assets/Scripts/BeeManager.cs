@@ -559,10 +559,11 @@ public class BeeManager : MonoBehaviour
 			}
 			
 		}
-		/*
+		
 		//Maybe figure out a way to implement particles on death if I want a medal or something
 		JobHandle angerHandle = angerJob.Schedule(beePositions.Length, 64);
 		angerHandle.Complete();
+		/*
 		JobHandle deathHandle = deathJob.Schedule(beePositions.Length, 64);
 		deathHandle.Complete();
 
