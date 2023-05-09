@@ -247,21 +247,21 @@ public class BeeManager : MonoBehaviour
 		//matProps = new MaterialPropertyBlock();
 
 		#region ECS declerations
-		beePositions = new NativeArray<float3>(50000, Allocator.Persistent);
-		beeVelocities = new NativeArray<float3>(50000, Allocator.Persistent);
-		beeSmoothPositions = new NativeArray<float3>(50000, Allocator.Persistent);
-		beeSmoothDirections = new NativeArray<float3>(50000, Allocator.Persistent);
-		teams = new NativeArray<bool>(50000, Allocator.Persistent);
-		sizes = new NativeArray<float>(50000, Allocator.Persistent);
-		targetIndex = new NativeArray<int>(50000, Allocator.Persistent);
-		resourceTargetIndex = new NativeArray<int>(50000, Allocator.Persistent);
-		dead = new NativeArray<bool>(50000, Allocator.Persistent);
-		deathTimer = new NativeArray<float>(50000, Allocator.Persistent);
-		isAttacking = new NativeArray<bool>(50000, Allocator.Persistent);
-		isHoldingResource = new NativeArray<bool>(50000, Allocator.Persistent);
-		isActive = new NativeArray<bool>(50000, Allocator.Persistent);
-		trueTeamIndex = new NativeArray<int>(25000, Allocator.Persistent);
-		falseTeamIndex = new NativeArray<int>(25000, Allocator.Persistent);
+		beePositions = new NativeArray<float3>(10000, Allocator.Persistent);
+		beeVelocities = new NativeArray<float3>(10000, Allocator.Persistent);
+		beeSmoothPositions = new NativeArray<float3>(10000, Allocator.Persistent);
+		beeSmoothDirections = new NativeArray<float3>(10000, Allocator.Persistent);
+		teams = new NativeArray<bool>(10000, Allocator.Persistent);
+		sizes = new NativeArray<float>(10000, Allocator.Persistent);
+		targetIndex = new NativeArray<int>(10000, Allocator.Persistent);
+		resourceTargetIndex = new NativeArray<int>(10000, Allocator.Persistent);
+		dead = new NativeArray<bool>(10000, Allocator.Persistent);
+		deathTimer = new NativeArray<float>(10000, Allocator.Persistent);
+		isAttacking = new NativeArray<bool>(10000, Allocator.Persistent);
+		isHoldingResource = new NativeArray<bool>(10000, Allocator.Persistent);
+		isActive = new NativeArray<bool>(10000, Allocator.Persistent);
+		trueTeamIndex = new NativeArray<int>(5000, Allocator.Persistent);
+		falseTeamIndex = new NativeArray<int>(5000, Allocator.Persistent);
 		InitJob initJob = new InitJob
 		{
 			beeVelocities = beeVelocities,
@@ -275,16 +275,11 @@ public class BeeManager : MonoBehaviour
 			isActive = isActive
 		};
 
-		JobHandle initHandle = initJob.Schedule(50000, 64);
+		JobHandle initHandle = initJob.Schedule(10000, 64);
 		initHandle.Complete();
 		#endregion
 
 		
-
-		for (int i = 0; i < 2; i++)
-		{
-			teamsOfBees[i] = new List<Bee>(25000);
-		}
 		for (int i = 0; i < startBeeCount; i++)
 		{
 			int team = i % 2;
