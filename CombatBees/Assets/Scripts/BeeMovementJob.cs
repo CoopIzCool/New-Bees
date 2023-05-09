@@ -58,7 +58,8 @@ public struct BeeMovementJob : IJobParallelFor
 				beeVel.z *= .8f;
 				beeVel.x *= .8f;
 			}
-
+			beePositions[index] = beePos;
+			beeVelocities[index] = beeVel;
 			float3 oldSmoothPos = smoothPositions[index];
 			if (isAttacking[index] == false)
 			{

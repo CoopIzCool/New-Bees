@@ -4,7 +4,7 @@ using UnityEngine;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
-
+using System;
 
 public class BeeManager : MonoBehaviour
 {
@@ -47,7 +47,8 @@ public class BeeManager : MonoBehaviour
 	MaterialPropertyBlock matProps;
 
 	#region ECS Fields
-	public static NativeArray<float3> beePositions;
+	[SerializeField] public static NativeArray<float3> beePositions;
+
 	public static NativeArray<float3> beeVelocities;
 	public NativeArray<float3> beeSmoothPositions;
 	public NativeArray<float3> beeSmoothDirections;
@@ -563,7 +564,7 @@ public class BeeManager : MonoBehaviour
 		//Maybe figure out a way to implement particles on death if I want a medal or something
 		JobHandle angerHandle = angerJob.Schedule(beePositions.Length, 64);
 		angerHandle.Complete();
-		/*
+		
 		JobHandle deathHandle = deathJob.Schedule(beePositions.Length, 64);
 		deathHandle.Complete();
 
@@ -577,22 +578,25 @@ public class BeeManager : MonoBehaviour
 				}
 			}
 		}
+		
 		JobHandle movementHandle = beeMovementJob.Schedule(beePositions.Length, 64);
 		movementHandle.Complete();
-		*/
+		
 		startSeed++;
         #endregion
     }
     private void Update()
 	{
-		/*
+		Debug.Log(beePositions[0]);
+		Debug.Log(beeVelocities[0]);
 		for (int i = 0; i < highestIndex; i++)
 		{
 			if(isActive[i])
 			{
+				
 				float size = sizes[i];
 				Vector3 scale = new Vector3(size, size, size);
-				if (bees[i].dead == false)
+				if (dead[i] == false)
 				{
 					float3 velocity = beeVelocities[i];
 					float velocityMagnitude = (velocity.x * velocity.x) + (velocity.y * velocity.y) + (velocity.z * velocity.z);
@@ -607,14 +611,22 @@ public class BeeManager : MonoBehaviour
 					rotation = Quaternion.LookRotation((Vector3)beeSmoothDirections[i]);
 				}
 				int colorIndex = (teams[i]) ? 0 : 1;
-				Color color = teamColors[bees[i].team];
+				Color color = teamColors[colorIndex];
 				if (dead[i])
 				{
 					color *= .75f;
 					scale *= Mathf.Sqrt(deathTimer[i]);
 				}
-				beeMatrices[i / beesPerBatch][i % beesPerBatch] = Matrix4x4.TRS((Vector3)beePositions[i], rotation, scale);
-				beeColors[i / beesPerBatch][i % beesPerBatch] = color;
+				try
+				{
+					beeMatrices[i / beesPerBatch][i % beesPerBatch] = Matrix4x4.TRS((Vector3)beePositions[i], rotation, scale);
+					beeColors[i / beesPerBatch][i % beesPerBatch] = color;
+				}
+				catch(Exception e)
+				{
+					Debug.Log(i);
+					Debug.Log("Active State is " + isActive[i]);
+				}
 			}
 		}
 		for (int i = 0; i <= activeBatch; i++)
@@ -625,6 +637,6 @@ public class BeeManager : MonoBehaviour
 				Graphics.DrawMeshInstanced(beeMesh, 0, beeMaterial, beeMatrices[i], matProps);
 			}
 		}
-		*/
+		
 	}
 }
