@@ -12,9 +12,9 @@ public struct VelocityJob : IJobParallelFor
     [ReadOnly] public NativeArray<bool> dead;
     public NativeArray<float3> beeVelocities;
     [ReadOnly] public NativeArray<bool> team;
-    [ReadOnly] public NativeArray<int> teamTrue;
+    [NativeDisableParallelForRestriction] [ReadOnly] public NativeArray<int> teamTrue;
     [ReadOnly] public int teamTrueMax;
-    public NativeArray<int> teamFalse;
+    [NativeDisableParallelForRestriction] [ReadOnly]public NativeArray<int> teamFalse;
     [ReadOnly] public int teamFalseMax;
     [ReadOnly] public NativeArray<float3> beePositions;
     [ReadOnly] public NativeArray<bool> isActive;
@@ -22,6 +22,7 @@ public struct VelocityJob : IJobParallelFor
     [ReadOnly] public float damping;
     [ReadOnly] public float teamAttraction;
     [ReadOnly] public float teamRepulsion;
+    [ReadOnly] public float startSeed;
     [ReadOnly] public float deltaTime;
     public void Execute(int index)
     {
@@ -31,20 +32,24 @@ public struct VelocityJob : IJobParallelFor
             isHoldingResource[index] = false;
             if(!dead[index])
             {
-                beeVelocities[index] = UnityEngine.Random.insideUnitSphere * (flightJitter * deltaTime);
+                Unity.Mathematics.Random random = Unity.Mathematics.Random.CreateFromIndex((uint)(startSeed + index));
+                float randX = random.NextFloat(0, 1.0f);
+                float randY = random.NextFloat(0, 1.0f);
+                float randZ = random.NextFloat(0, 1.0f);
+                beeVelocities[index] = (float3)(new float3(randX,randY,randZ) * (flightJitter * deltaTime));
                 beeVelocities[index] *= (1f * damping);
                 int attractiveFriendIndex = 0;
                 int repellantFriendIndex = 0;
                 if (team[index])
                 {
-                    //Find some way to avoid inactive Index
-                    attractiveFriendIndex = teamTrue[UnityEngine.Random.Range(0, teamTrueMax - 1)];
-                    repellantFriendIndex = teamTrue[UnityEngine.Random.Range(0, teamTrueMax - 1)];
+                    //Find some way to avoid inactive Index (0, teamTrueMax - 1)
+                    attractiveFriendIndex = teamTrue[random.NextInt(0,teamTrueMax - 1)];
+                    repellantFriendIndex = teamTrue[random.NextInt(0, teamTrueMax - 1)];
                 }
                 else
                 {
-                    attractiveFriendIndex = teamFalse[UnityEngine.Random.Range(0, teamTrueMax - 1)];
-                    repellantFriendIndex = teamFalse[UnityEngine.Random.Range(0, teamTrueMax - 1)];
+                    attractiveFriendIndex = teamFalse[random.NextInt(0, teamFalseMax - 1)];
+                    repellantFriendIndex = teamFalse[random.NextInt(0, teamFalseMax - 1)];
                 }
 
                 if(isActive[attractiveFriendIndex])
@@ -71,4 +76,5 @@ public struct VelocityJob : IJobParallelFor
 
         }
     }
+
 }

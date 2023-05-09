@@ -1,18 +1,24 @@
-using System.Collections;
-using System.Collections.Generic;
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Jobs;
+using Unity.Mathematics;
 using UnityEngine;
 
-public class DeathJob : MonoBehaviour
+[BurstCompile]
+public struct DeathJob : IJobParallelFor
 {
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+	[ReadOnly] public NativeArray<bool> isActive;
+	[ReadOnly] public NativeArray<bool> isDead;
+	public NativeArray<float> deathTimer;
+	public NativeArray<float3> beeVelocities;
+	[ReadOnly] public float gravity;
+	[ReadOnly] public float deltaTime;
+    public void Execute(int index)
+	{ 
+		if(isActive[index] && isDead[index])
+		{
+			beeVelocities[index] += new float3(0,gravity * deltaTime,0);
+			deathTimer[index] -= deltaTime / 10f;
+		}
+	}
 }

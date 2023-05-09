@@ -31,13 +31,14 @@ public class ResourceManager : MonoBehaviour {
 	public int indexCount = 0;
 
 	#region ECS Fields
-	public NativeArray<float3> resourcePosition;
-	public NativeArray<bool> resourceStacked;
+	public static NativeArray<float3> resourcePosition;
+	public static NativeArray<bool> resourceStacked;
+	public static NativeArray<bool> isTopOfStack;
 	public NativeArray<int> gridX;
 	public NativeArray<int> gridY;
-	public NativeArray<int> holderIndex;
-	public NativeArray<bool> resourceVelocity;
-	public NativeArray<bool> dead;
+	public static NativeArray<int> holderIndex;
+	public NativeArray<float3> resourceVelocity;
+	public static NativeArray<bool> dead;
 	#endregion
 
 	public static Resource TryGetRandomResource() {
@@ -114,14 +115,32 @@ public class ResourceManager : MonoBehaviour {
 		matrices.RemoveAt(matrices.Count - 1);
 	}
 
-	public static void GrabResource(int beeIndex, Resource resource) {
+	public static void GrabResource(int beeIndex, int resourceIndex) {
+		Resource resource = instance.resources[resourceIndex];
 		resource.holderIndex = beeIndex;
 		resource.stacked = false;
 		instance.stackHeights[resource.gridX,resource.gridY]--;
 	}
 
+	public static void RemoveHolderAtIndex(int index)
+	{
+		instance.resources[index].holderIndex = -1;
+	}
+
 	void Awake() {
 		instance = this;
+	}
+
+	public void OnDestroy()
+	{
+		resourcePosition.Dispose();
+		resourceStacked.Dispose();
+		isTopOfStack.Dispose();
+		gridX.Dispose();
+		gridY.Dispose();
+		holderIndex.Dispose();
+		resourceVelocity.Dispose();
+		dead.Dispose();
 	}
 	void Start () {
 		resources = new List<Resource>();
@@ -132,13 +151,38 @@ public class ResourceManager : MonoBehaviour {
 		minGridPos = new Vector2((gridCounts.x-1f)*-.5f*gridSize.x,(gridCounts.y-1f)*-.5f*gridSize.y);
 		stackHeights = new int[gridCounts.x,gridCounts.y];
 
-		for (int i=0;i<startResourceCount;i++) {
+		#region ECS Start
+		resourcePosition = new NativeArray<float3>(5000,Allocator.Persistent);
+		resourceStacked = new NativeArray<bool>(5000, Allocator.Persistent);
+		isTopOfStack = new NativeArray<bool>(5000, Allocator.Persistent);
+		gridX = new NativeArray<int>(5000, Allocator.Persistent);
+		gridY = new NativeArray<int>(5000, Allocator.Persistent);
+		holderIndex = new NativeArray<int>(5000, Allocator.Persistent);
+		resourceVelocity = new NativeArray<float3>(5000, Allocator.Persistent);
+		dead = new NativeArray<bool>(5000, Allocator.Persistent);
+        #endregion
+        for (int i=0;i<startResourceCount;i++) {
 			SpawnResource();
 		}
 	}
 
 	void Update() {
-		if (resources.Count < 1000 && MouseRaycaster.isMouseTouchingField) {
+
+		#region ECS Update
+		foreach (Resource resource in resources)
+		{
+			int index = resource.resourceIndex;
+			resourcePosition[index] = (float3)resource.position;
+			resourceStacked[index] = resource.stacked;
+			isTopOfStack[index] = IsTopOfStack(resource);
+			gridX[index] = resource.gridX;
+			gridY[index] = resource.gridY;
+			holderIndex[index] = resource.holderIndex;
+			resourceVelocity[index] = resource.velocity;
+			dead[index] = resource.dead;
+		}
+        #endregion
+        if (resources.Count < 1000 && MouseRaycaster.isMouseTouchingField) {
 			if (Input.GetKey(KeyCode.Mouse0)) {
 				spawnTimer += Time.deltaTime;
 				while (spawnTimer > 1f/spawnRate) {

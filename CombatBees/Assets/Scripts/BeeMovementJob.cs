@@ -9,13 +9,15 @@ public struct BeeMovementJob : IJobParallelFor
 {
     public NativeArray<float3> beePositions;
     public NativeArray<float3> beeVelocities;
+	public NativeArray<float3> smoothPositions;
+	public NativeArray<float3> smoothDirections;
 	[ReadOnly] public NativeArray<bool> isHoldingResource;
+	[ReadOnly] public NativeArray<bool> isAttacking;
 	[ReadOnly] public NativeArray<bool> isActive;
 	[ReadOnly] public float3 fieldSize;
 	[ReadOnly] public float resourceSize;
+	[ReadOnly] public float rotationStiffness;
 	[ReadOnly] public float deltaTime;
-
-	
 
 	public void Execute(int index)
     {
@@ -56,6 +58,17 @@ public struct BeeMovementJob : IJobParallelFor
 				beeVel.z *= .8f;
 				beeVel.x *= .8f;
 			}
+
+			float3 oldSmoothPos = smoothPositions[index];
+			if (isAttacking[index] == false)
+			{
+				smoothPositions[index] = Vector3.Lerp(smoothPositions[index], beePositions[index], deltaTime * rotationStiffness);
+			}
+			else
+			{
+				smoothPositions[index] = beePositions[index];
+			}
+			smoothDirections[index] = smoothPositions[index] - oldSmoothPos;
 		}
 
 	}

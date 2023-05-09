@@ -73,6 +73,7 @@ public class BeeManager : MonoBehaviour
 	int highestIndex = 0;
 	int trueIndex = 0;
 	int falseIndex = 0;
+	int startSeed = 0;
 	List<int> pooledIndex = new List<int>();
 	#endregion
 
@@ -297,7 +298,7 @@ public class BeeManager : MonoBehaviour
 	void FixedUpdate()
 	{
 		float deltaTime = Time.fixedDeltaTime;
-
+		/*
 		for (int i = 0; i < bees.Count; i++)
 		{
 			Bee bee = bees[i];
@@ -405,7 +406,7 @@ public class BeeManager : MonoBehaviour
 			}
 			bee.smoothDirection = bee.smoothPosition - oldSmoothPos;
 		}
-
+		*/
 		#region Jobs Update
 		VelocityJob velocityJob = new VelocityJob
 		{
@@ -424,6 +425,7 @@ public class BeeManager : MonoBehaviour
 			damping = damping,
 			teamAttraction = teamAttraction,
 			teamRepulsion = teamRepulsion,
+			startSeed = startSeed,
 			deltaTime = Time.deltaTime
 			
 		};
@@ -443,76 +445,176 @@ public class BeeManager : MonoBehaviour
 			deltaTime = Time.deltaTime
 		};
 
+		DeathJob deathJob = new DeathJob
+		{
+			isActive = isActive,
+			isDead = dead,
+			deathTimer = deathTimer,
+			beeVelocities = beeVelocities,
+			gravity = Field.gravity,
+			deltaTime = Time.deltaTime
+		};
+
 		BeeMovementJob beeMovementJob = new BeeMovementJob
 		{
 			beePositions = beePositions,
 			beeVelocities = beeVelocities,
+			smoothPositions = beeSmoothPositions,
+			smoothDirections = beeSmoothDirections,
 			isHoldingResource = isHoldingResource,
+			isAttacking = isAttacking,
 			isActive = isActive,
 			fieldSize = Field.burstSize,
 			resourceSize = ResourceManager.instance.resourceSize,
+			rotationStiffness = rotationStiffness,
 			deltaTime = Time.deltaTime
 		};
 
 		JobHandle velocityHandle = velocityJob.Schedule(beePositions.Length, 64);
 		velocityHandle.Complete();
 
+		
 		//Ugh loops
 		for(int i = 0; i < beePositions.Length; i++)
 		{
-			if (targetIndex[i] == -1 && resourceTargetIndex[i] == -1)
+			if(isActive[i])
 			{
-				if (UnityEngine.Random.value < aggression)
+				if (targetIndex[i] == -1 && resourceTargetIndex[i] == -1)
 				{
-					int enemyIndex = 0;
-					//Find a way to make sure only a real index gets called.
-					if(teams[i])
+					if (UnityEngine.Random.value < aggression)
 					{
-						enemyIndex = falseTeamIndex[UnityEngine.Random.Range(0,falseIndex)];
+						int enemyIndex = 0;
+						//Find a way to make sure only a real index gets called.
+						if (teams[i])
+						{
+							enemyIndex = falseTeamIndex[UnityEngine.Random.Range(0, falseIndex)];
+						}
+						else
+						{
+							enemyIndex = trueTeamIndex[UnityEngine.Random.Range(0, trueIndex)];
+						}
 					}
 					else
 					{
-						enemyIndex = trueTeamIndex[UnityEngine.Random.Range(0, trueIndex)];
+						resourceTargetIndex[i] = ResourceManager.TryGetRandomResourceIndex();
 					}
 				}
-				else
+				if (isActive[i])
 				{
-					resourceTargetIndex[i] = ResourceManager.TryGetRandomResourceIndex();
+					if (resourceTargetIndex[i] != -1)
+					{
+						int resourceIndex = resourceTargetIndex[i];
+						int heldIndex = ResourceManager.holderIndex[resourceIndex];
+						if (ResourceManager.holderIndex[resourceIndex] == -1)
+						{
+							if (ResourceManager.dead[resourceIndex])
+							{
+								resourceTargetIndex[i] = -1;
+							}
+							else if (ResourceManager.resourceStacked[resourceIndex] && ResourceManager.isTopOfStack[resourceIndex] == false)
+							{
+								resourceTargetIndex[i] = -1;
+							}
+							else
+							{
+								float3 delta = ResourceManager.resourcePosition[resourceIndex] - beePositions[i];
+								float sqrDist = delta.x * delta.x + delta.y * delta.y + delta.z * delta.z;
+								if (sqrDist > grabDistance * grabDistance)
+								{
+									beeVelocities[i] += delta * (chaseForce * deltaTime / Mathf.Sqrt(sqrDist));
+								}
+								else if (ResourceManager.resourceStacked[resourceIndex])
+								{
+									ResourceManager.GrabResource(i, resourceIndex);
+								}
+							}
+						}
+						else if (ResourceManager.holderIndex[resourceIndex] == i)
+						{
+							int teamPlacement = (teams[i]) ? 0 : 1;
+							float3 targetPos = new float3(-Field.size.x * .45f + Field.size.x * .9f * teamPlacement, 0f, beePositions[i].z);
+							float3 delta = targetPos - beePositions[i];
+							float dist = Mathf.Sqrt(delta.x * delta.x + delta.y * delta.y + delta.z * delta.z);
+							beeVelocities[i] += (targetPos - beePositions[i]) * (carryForce * deltaTime / dist);
+							if (dist < 1f)
+							{
+								ResourceManager.RemoveHolderAtIndex(resourceIndex);
+								resourceTargetIndex[i] = -1;
+							}
+							else
+							{
+								isHoldingResource[i] = true;
+							}
+						}
+						else if (teams[heldIndex] != teams[i])
+						{
+							targetIndex[i] = heldIndex;
+						}
+						else if (teams[heldIndex] == teams[i])
+						{
+							resourceTargetIndex[i] = -1;
+						}
+					}
+				}
+			}
+			
+		}
+		/*
+		//Maybe figure out a way to implement particles on death if I want a medal or something
+		JobHandle angerHandle = angerJob.Schedule(beePositions.Length, 64);
+		angerHandle.Complete();
+		JobHandle deathHandle = deathJob.Schedule(beePositions.Length, 64);
+		deathHandle.Complete();
+
+		for(int i = 0; i < highestIndex; i++)
+		{
+			if(isActive[i] && dead[i])
+			{
+				if(deathTimer[i] < 0)
+				{
+					DeleteBee(i);
 				}
 			}
 		}
-		//Maybe figure out a way to implement particles on death if I want a medal or something
-		JobHandle angerHandle = angerJob.Schedule(beePositions.Length, 64);
 		JobHandle movementHandle = beeMovementJob.Schedule(beePositions.Length, 64);
 		movementHandle.Complete();
+		*/
+		startSeed++;
         #endregion
     }
     private void Update()
 	{
-		for (int i = 0; i < bees.Count; i++)
+		/*
+		for (int i = 0; i < highestIndex; i++)
 		{
-			float size = bees[i].size;
-			Vector3 scale = new Vector3(size, size, size);
-			if (bees[i].dead == false)
+			if(isActive[i])
 			{
-				float stretch = Mathf.Max(1f, bees[i].velocity.magnitude * speedStretch);
-				scale.z *= stretch;
-				scale.x /= (stretch - 1f) / 5f + 1f;
-				scale.y /= (stretch - 1f) / 5f + 1f;
+				float size = sizes[i];
+				Vector3 scale = new Vector3(size, size, size);
+				if (bees[i].dead == false)
+				{
+					float3 velocity = beeVelocities[i];
+					float velocityMagnitude = (velocity.x * velocity.x) + (velocity.y * velocity.y) + (velocity.z * velocity.z);
+					float stretch = Mathf.Max(1f, velocityMagnitude * speedStretch);
+					scale.z *= stretch;
+					scale.x /= (stretch - 1f) / 5f + 1f;
+					scale.y /= (stretch - 1f) / 5f + 1f;
+				}
+				Quaternion rotation = Quaternion.identity;
+				if ((Vector3)beeSmoothDirections[i] != Vector3.zero)
+				{
+					rotation = Quaternion.LookRotation((Vector3)beeSmoothDirections[i]);
+				}
+				int colorIndex = (teams[i]) ? 0 : 1;
+				Color color = teamColors[bees[i].team];
+				if (dead[i])
+				{
+					color *= .75f;
+					scale *= Mathf.Sqrt(deathTimer[i]);
+				}
+				beeMatrices[i / beesPerBatch][i % beesPerBatch] = Matrix4x4.TRS((Vector3)beePositions[i], rotation, scale);
+				beeColors[i / beesPerBatch][i % beesPerBatch] = color;
 			}
-			Quaternion rotation = Quaternion.identity;
-			if (bees[i].smoothDirection != Vector3.zero)
-			{
-				rotation = Quaternion.LookRotation(bees[i].smoothDirection);
-			}
-			Color color = teamColors[bees[i].team];
-			if (bees[i].dead)
-			{
-				color *= .75f;
-				scale *= Mathf.Sqrt(bees[i].deathTimer);
-			}
-			beeMatrices[i / beesPerBatch][i % beesPerBatch] = Matrix4x4.TRS(beePositions[i], rotation, scale);
-			beeColors[i / beesPerBatch][i % beesPerBatch] = color;
 		}
 		for (int i = 0; i <= activeBatch; i++)
 		{
@@ -522,5 +624,6 @@ public class BeeManager : MonoBehaviour
 				Graphics.DrawMeshInstanced(beeMesh, 0, beeMaterial, beeMatrices[i], matProps);
 			}
 		}
+		*/
 	}
 }
