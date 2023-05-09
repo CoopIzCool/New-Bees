@@ -306,6 +306,7 @@ MonoBehaviour:
   spawnRate: 10
   beesPerResource: 8
   startResourceCount: 500
+  indexCount: 0
 --- !u!4 &129398392
 Transform:
   m_ObjectHideFlags: 0

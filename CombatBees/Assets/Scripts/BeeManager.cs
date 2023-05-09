@@ -587,8 +587,6 @@ public class BeeManager : MonoBehaviour
     }
     private void Update()
 	{
-		Debug.Log(beePositions[0]);
-		Debug.Log(beeVelocities[0]);
 		for (int i = 0; i < highestIndex; i++)
 		{
 			if(isActive[i])
@@ -624,8 +622,7 @@ public class BeeManager : MonoBehaviour
 				}
 				catch(Exception e)
 				{
-					Debug.Log(i);
-					Debug.Log("Active State is " + isActive[i]);
+					Debug.LogError("Active State of " + i + " is " + isActive[i]);
 				}
 			}
 		}
