@@ -115,11 +115,16 @@ public class ResourceManager : MonoBehaviour {
 		matrices.RemoveAt(matrices.Count - 1);
 	}
 
-	public static void GrabResource(int beeIndex, int resourceIndex) {
-		Resource resource = instance.resources[resourceIndex];
-		resource.holderIndex = beeIndex;
-		resource.stacked = false;
-		instance.stackHeights[resource.gridX,resource.gridY]--;
+	public static bool GrabResource(int beeIndex, int resourceIndex) {
+		if(instance.resources.Count > resourceIndex)
+		{
+			Resource resource = instance.resources[resourceIndex];
+			resource.holderIndex = beeIndex;
+			resource.stacked = false;
+			instance.stackHeights[resource.gridX, resource.gridY]--;
+			return true;
+		}
+		return false;
 	}
 
 	public static void RemoveHolderAtIndex(int index)
